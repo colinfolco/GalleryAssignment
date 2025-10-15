@@ -2,61 +2,157 @@
 
 {% block content %}
 <div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Image Gallery</h1>
-            <a href="{% url 'image_upload' %}" class="btn btn-primary">Upload New Image</a>
+    <div class="col-md-3">
+        <div class="sidebar">
+            <h5>Filter & Search</h5>
+
+            <form method="get" class="mb-3">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Search..." value="{{ search_query }}">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+
+            <h6>Filter by Tags:</h6>
+            <div class="mb-3">
+                <a href="{% url 'image_list' %}" 
+                   class="badge {% if not selected_tag %}bg-primary{% else %}bg-secondary{% endif %} tag-badge">
+                    All Tags
+                </a>
+                {% for tag in all_tags %}
+                <a href="{% url 'image_list' %}?tag={{ tag.name }}"
+                   class="badge {% if selected_tag == tag.name %}bg-primary{% else %}bg-secondary{% endif %} tag-badge">
+                    {{ tag.name }}
+                </a>
+                {% endfor %}
+            </div>
+
+            {% if my_images %}
+            <h6>My Uploads</h6>
+            <div class="mb-3">
+                {% for image in my_images|slice:":5" %}
+                <div class="d-flex align-items-center mb-2">
+                    <img src="{{ image.image.url }}" 
+                         class="rounded me-2" 
+                         style="width: 40px; height: 40px; object-fit: cover;">
+                    <small>{{ image.title|truncatewords:3 }}</small>
+                </div>
+                {% endfor %}
+                {% if my_images.count > 5 %}
+                <small class="text-muted">+{{ my_images.count|add:"-5" }} more</small>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if viewing_history %}
+            <h6>Recently Viewed</h6>
+            {% for image in viewing_history|slice:":3" %}
+            <div class="history-item">
+                <a href="{% url 'image_detail' image.pk %}" class="text-decoration-none">
+                    <small class="d-block">{{ image.title|truncatewords:2 }}</small>
+                    <small class="text-muted">{{ image.uploaded_at|timesince }} ago</small>
+                </a>
+            </div>
+            {% endfor %}
+            {% endif %}
         </div>
     </div>
-</div>
 
-{% if images %}
-    <div class="row">
-        {% for image in images %}
-        <div class="col-md-3 col-sm-6">
-            <div class="card image-card">
-                <img src="{{ image.image.url }}" 
-                     class="card-img-top image-thumbnail" 
-                     alt="{{ image.title }}"
-                     style="height: 200px; object-fit: cover;">
-                <div class="card-body">
-                    <h6 class="card-title">{{ image.title }}</h6>
-                    <small class="text-muted">{{ image.uploaded_at|date:"M d, Y" }}</small>
+    <div class="col-md-9">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                {% if selected_tag %}
+                Images tagged with "{{ selected_tag }}"
+                {% elif search_query %}
+                Search results for "{{ search_query }}"
+                {% else %}
+                Image Gallery
+                {% endif %}
+            </h1>
+            <a href="{% url 'image_upload' %}" class="btn btn-primary">
+                <i class="bi bi-upload"></i> Upload New Image
+            </a>
+        </div>
+
+        {% if images %}
+        <div class="row">
+            {% for image in images %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card image-card h-100">
+                    <a href="{% url 'image_detail' image.pk %}">
+                        <img src="{{ image.image.url }}" 
+                             class="card-img-top image-thumbnail" 
+                             alt="{{ image.title }}"
+                             style="height: 200px; object-fit: cover;">
+                    </a>
+                    <div class="card-body">
+                        <h6 class="card-title">{{ image.title }}</h6>
+                        {% if image.description %}
+                        <p class="card-text small text-muted">{{ image.description|truncatewords:10 }}</p>
+                        {% endif %}
+
+                        {% if image.tags.all %}
+                        <div class="mb-2">
+                            {% for tag in image.tags.all %}
+                            <span class="badge bg-light text-dark">{{ tag.name }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">{{ image.uploaded_at|date:"M d, Y" }}</small>
+                            <a href="{% url 'image_detail' image.pk %}" class="btn btn-sm btn-outline-primary">
+                                View Details
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-        {% endfor %}
-    </div>
-
-    {% if is_paginated %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if page_obj.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
-            </li>
-            {% endif %}
-
-            {% for num in page_obj.paginator.page_range %}
-            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-            </li>
             {% endfor %}
+        </div>
 
-            {% if page_obj.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
+        {% if is_paginated %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_tag %}&tag={{ selected_tag }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Previous</a>
+                </li>
+                {% endif %}
 
-{% else %}
-    <div class="text-center py-5">
-        <h3>No images uploaded yet.</h3>
-        <p class="text-muted">Be the first to upload an image!</p>
-        <a href="{% url 'image_upload' %}" class="btn btn-primary btn-lg">Upload First Image</a>
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if selected_tag %}&tag={{ selected_tag }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a>
+                </li>
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_tag %}&tag={{ selected_tag }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-5">
+            <h3>No images found.</h3>
+            <p class="text-muted">
+                {% if selected_tag %}
+                No images tagged with "{{ selected_tag }}".
+                {% elif search_query %}
+                No results for "{{ search_query }}".
+                {% else %}
+                No images uploaded yet.
+                {% endif %}
+            </p>
+            <a href="{% url 'image_upload' %}" class="btn btn-primary btn-lg">Upload First Image</a>
+        </div>
+        {% endif %}
     </div>
-{% endif %}
+</div>
 {% endblock %}
